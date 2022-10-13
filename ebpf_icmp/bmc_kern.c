@@ -7,6 +7,21 @@
 #include <linux/icmp.h>
 #include "bpf_helpers.h"
 
+static inline u16 compute_ip_checksum(struct iphdr *ip)
+{
+    u32 csum = 0;
+    u16 *next_ip_u16 = (u16 *)ip;
+
+    ip->check = 0;
+
+#pragma clang loop unroll(full)
+    for (int i = 0; i < (sizeof(*ip) >> 1); i++) {
+        csum += *next_ip_u16++;
+    }
+
+	return ~((csum & 0xffff) + (csum >> 16));
+}
+
 SEC("xdp")
 int icmp_serv(struct xdp_md *ctx)
 {
@@ -15,11 +30,8 @@ int icmp_serv(struct xdp_md *ctx)
 	struct ethhdr *eth = data;
 	struct iphdr *ip = data + sizeof(*eth);
 	void *transp = data + sizeof(*eth) + sizeof(*ip);
-	struct udphdr *udp;
-	struct tcphdr *tcp;
 	struct icmphdr *icmp;
 	char *payload;
-	__be16 dport;
 
 	if (ip + 1 > data_end)
 		return XDP_PASS;
@@ -31,21 +43,48 @@ int icmp_serv(struct xdp_md *ctx)
 				return XDP_PASS;
 			payload = transp + sizeof(*icmp);
 			break;
-		case IPPROTO_TCP:
-			tcp = (struct tcphdr *) transp;
-			if (tcp + 1 > data_end)
-				return XDP_PASS;
-			dport = tcp->dest;
-			payload = transp + sizeof(*tcp);
-			break;
 		default:
 			return XDP_PASS;
 	}
-	if (payload + 11 > data_end)
+
+	// Exchanging source and destination info
+	// Taken directly from bmc code, so should work
+
+	// unsigned char tmp_mac[ETH_ALEN];
+	// __be32 tmp_ip;
+
+	// memcpy(tmp_mac, eth->h_source, ETH_ALEN);
+	// memcpy(eth->h_source, eth->h_dest, ETH_ALEN);
+	// memcpy(eth->h_dest, tmp_mac, ETH_ALEN);
+
+	// tmp_ip = ip->saddr;
+	// ip->saddr = ip->daddr;
+	// ip->daddr = tmp_ip;
+	// ip->check = compute_ip_checksum(ip);
+
+	// Changing the type and zeroing the csum for calculation
+	// icmp->type = 0;
+	// icmp->checksum = 0;
+
+	// Testing: this hard-coded memory-access works
+	if (payload + 57 > data_end)
 		return XDP_PASS;
-	bpf_printk("Bytes: %u %u %u", *(payload + 8), *(payload + 9), *(payload + 10));
+	bpf_printk("%u %u %u", *(payload + 16), *(payload + 17), *(payload + 18));
+	bpf_printk("%u %u %u", *(payload + 19), *(payload + 20), *(payload + 21));
+	bpf_printk("%u %u %u", *(payload + 22), *(payload + 23), *(payload + 24));
+
+	// Testing: This for loop gets rejected by the verifier
+	// for (unsigned int i = 0; ; i++){
+	// 	if (payload + i + 1 > data_end)
+	// 		break;
+	// 	else {
+	// 		bpf_printk("%u", *(payload +i));
+	// 	}
+	// }
+	bpf_printk("%u %u %u", htons(icmp->un.echo.id), htons(icmp->un.echo.sequence), icmp->checksum);
 
 	return XDP_PASS;
+	// return XDP_TX;
 }
 
 // to test colisions: keys declinate0123456 and macallums0123456 have hash colision
