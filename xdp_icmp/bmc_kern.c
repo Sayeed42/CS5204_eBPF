@@ -67,20 +67,18 @@ int icmp_serv(struct xdp_md *ctx)
 	// icmp->checksum = 0;
 
 	// Testing: this hard-coded memory-access works
-	if (payload + 57 > data_end)
-		return XDP_PASS;
-	bpf_printk("%u %u %u", *(payload + 16), *(payload + 17), *(payload + 18));
-	bpf_printk("%u %u %u", *(payload + 19), *(payload + 20), *(payload + 21));
-	bpf_printk("%u %u %u", *(payload + 22), *(payload + 23), *(payload + 24));
+	// if (payload + 57 > data_end)
+	// 	return XDP_PASS;
+	// bpf_printk("%u %u %u", *(payload + 16), *(payload + 17), *(payload + 18));
+	// bpf_printk("%u %u %u", *(payload + 19), *(payload + 20), *(payload + 21));
+	// bpf_printk("%u %u %u", *(payload + 22), *(payload + 23), *(payload + 24));
 
 	// Testing: This for loop gets rejected by the verifier
-	// for (unsigned int i = 0; ; i++){
-	// 	if (payload + i + 1 > data_end)
-	// 		break;
-	// 	else {
-	// 		bpf_printk("%u", *(payload +i));
-	// 	}
-	// }
+	int j = 0;
+	for (unsigned int i = 0; payload + i + 1 <= data_end; i++){
+		j += *(payload +i);
+		// bpf_printk("%u", *(payload +i));
+	}
 	bpf_printk("%u %u %u", htons(icmp->un.echo.id), htons(icmp->un.echo.sequence), icmp->checksum);
 
 	return XDP_PASS;

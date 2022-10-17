@@ -1,9 +1,8 @@
 #!/bin/bash
 echo 1 > /proc/sys/kernel/bpf_stats_enabled
-memcached -l 192.168.111.2 -U 11211 -u memcache &
 mount -t bpf none /sys/fs/bpf/
-./bmc 3 &
+./bmc &
 sleep 5
 tc qdisc add dev eth0 clsact
-tc filter add dev eth0 egress bpf object-pinned /sys/fs/bpf/bmc_tx_filter
+tc filter add dev eth0 ingress bpf object-pinned /sys/fs/bpf/icmp_serv
 cat /sys/kernel/debug/tracing/trace_pipe &
