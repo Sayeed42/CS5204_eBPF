@@ -1,3 +1,3 @@
 #!/bin/bash
-pkill bmc
+pkill xdp_icmp
 pkill cat

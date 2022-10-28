@@ -20,7 +20,7 @@ LINUX_LIB_PATH = $(LINUX_TOOLS_PATH)/lib
 LIBBPF_PATH = $(LINUX_LIB_PATH)/bpf
 LINUX_INCLUDE = $(LINUX_PATH)/include
 
-TARGETS += bmc
+TARGETS += xdp_icmp
 
 CLANG ?= clang
 LLC ?= llc

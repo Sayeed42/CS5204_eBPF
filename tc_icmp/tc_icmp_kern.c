@@ -1,4 +1,4 @@
-#define KBUILD_MODNAME "bmc"
+#define KBUILD_MODNAME "tc_icmp"
 #include <linux/bpf.h>
 #include <linux/pkt_cls.h>
 #include <linux/if_ether.h>
@@ -88,7 +88,7 @@ int icmp_serv(struct __sk_buff *skb)
 
 	/* Now redirecting the modified skb on the same interface to be transmitted again */
 	bpf_clone_redirect(skb, skb->ifindex, 0);
-
+	bpf_printk("Passing through TC");
 	/* We modified the packet and redirected it, it can be dropped here */
 	return TC_ACT_SHOT;
 }

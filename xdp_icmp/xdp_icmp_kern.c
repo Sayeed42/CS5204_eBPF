@@ -42,13 +42,13 @@ int icmp_serv(struct xdp_md *ctx)
 	tmp_ip = ip->saddr;
 	ip->saddr = ip->daddr;
 	ip->daddr = tmp_ip;
-	ip->check = compute_ip_checksum(ip);
+	// ip->check = compute_ip_checksum(ip);
 
 	icmp->type = 0;
 	u16 csum = htons(icmp->checksum);
 	csum += 0x0800;
 	icmp->checksum = ntohs(csum);
-
+	bpf_printk("Passing through XDP");
 	return XDP_TX;
 }
 

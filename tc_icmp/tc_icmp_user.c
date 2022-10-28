@@ -83,11 +83,11 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 retry:
-	if (bpf_program__pin_instance(prog, filename, 0)) {
+	if (bpf_program__pin(prog, filename)) {
 		fprintf(stderr, "Error: Failed to pin program '%s' to path %s\n", "icmp_serv", filename);
 		if (errno == EEXIST) {
 			fprintf(stdout, "BPF program '%s' already pinned, unpinning it to reload it\n", "icmp_serv");
-			if (bpf_program__unpin_instance(prog, filename, 0)) {
+			if (bpf_program__unpin(prog, filename)) {
 				fprintf(stderr, "Error: Fail to unpin program '%s' at %s\n", "icmp_serv", filename);
 				return -1;
 			}
