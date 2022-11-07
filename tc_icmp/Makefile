@@ -14,7 +14,7 @@
 #	bmc_kern.c depends on kernel headers and bpf_helpers.h
 #	bmc_user.c depends on libbpf
 
-LINUX_PATH ?= ../../linux
+LINUX_PATH ?= $(HOME)/linux
 LINUX_TOOLS_PATH = $(LINUX_PATH)/tools
 LINUX_LIB_PATH = $(LINUX_TOOLS_PATH)/lib
 LIBBPF_PATH = $(LINUX_LIB_PATH)/bpf

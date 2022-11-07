@@ -6,7 +6,7 @@ sudo apt-get install gpg curl tar xz make gcc flex bison libssl-dev libelf-dev l
 ```
 For kernel compilation:
 ```
-sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison
+sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison dwarves
 ``` 
 For using QEMU:
 ```
