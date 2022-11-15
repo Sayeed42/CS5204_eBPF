@@ -2,7 +2,7 @@
 ## Dependencies
 For eBPF programs:
 ```
-sudo apt-get install gpg curl tar xz make gcc flex bison libssl-dev libelf-dev llvm clang libbpf-dev
+sudo apt-get install gpg curl tar xz make gcc flex bison libssl-dev libelf-dev llvm clang libbpf-dev binutils-dev libreadline-dev
 ```
 For kernel compilation:
 ```
@@ -50,8 +50,8 @@ It means the program is good, it passed the verifier, which means it is safe for
 ```
 cd
 git clone https://github.com/torvalds/linux.git
-git checkout v5.15
 cd linux
+git checkout v5.15
 cp ~/CS5204_eBPF/q-script/.config .config
 make -j$(nproc)
 ```
@@ -64,3 +64,19 @@ make qscript
 ## Building and Running the ICMP servers
 You can build the programs running `make` from any directory and clean the executables running `make clean` from any directory.
 It is recommended to build the programs on the host and run them on the VM. After starting the VM and going into any program directory (tc_icmp/xdp_icmp), run `./script.sh` to attach the programs and `./clean.sh` to detach the programs.
+
+## DNS Server
+So far, only attaching the program and updating the directory works. Working on testing scripts to send queries and get replies.
+Example attachment and update:
+```
+make
+make qscript
+cd ~/CS5204_eBPF/xdp_dns
+./xdp_dns 3 &
+./xdp_dns_update add a foo.bar 1.2.3.4 120
+./xdp_dns_update list
+./xdp_dns_update remove a foo.bar 1.2.3.4
+pkill xdp_dns
+^D
+make clean
+```
