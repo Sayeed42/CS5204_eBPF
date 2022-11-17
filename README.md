@@ -2,7 +2,7 @@
 ## Dependencies
 For eBPF programs:
 ```
-sudo apt-get install gpg curl tar xz make gcc flex bison libssl-dev libelf-dev llvm clang libbpf-dev binutils-dev libreadline-dev
+sudo apt-get install gpg curl tar xz-utils make gcc flex bison libssl-dev libelf-dev llvm clang libbpf-dev binutils-dev libreadline-dev
 ```
 For kernel compilation:
 ```
