@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #define A_RECORD_TYPE 0x0001
+#define AAAA_RECORD_TYPE 28
 #define DNS_CLASS_IN 0x0001
 //RFC1034: the total number of octets that represent a domain name is limited to 255.
 //We need to be aligned so the struct does not include padding bytes. We'll set the length to 256.
@@ -55,5 +56,11 @@ struct dns_response {
 //Used as value of our A record hashmap
 struct a_record {
     struct in_addr ip_addr;
+    uint32_t ttl;
+};
+
+//Used as value of our AAAA record hashmap
+struct aaaa_record {
+    struct in6_addr ip_addr;
     uint32_t ttl;
 };

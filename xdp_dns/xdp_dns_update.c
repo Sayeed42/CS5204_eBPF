@@ -1,7 +1,4 @@
 /*
-Xpress DNS: Experimental XDP DNS responder
-Copyright (C) 2021 Bas Schalbroeck <schalbroeck@gmail.com>
-
 SPDX-License-Identifier: GPL-2.0-or-later
 
 This program is free software; you can redistribute it and/or modify
@@ -24,8 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330
 #include <arpa/inet.h>
 #include <bpf/bpf.h>
 #include <errno.h>
-//bpf_elf.h is part of iproute2
-// #include <bpf_elf.h>
 #include "common.h"
 
 int get_map_fd(const char *map_path);
@@ -33,6 +28,7 @@ void replace_dots_with_length_octets(char *dns_name, char *new_dns_name);
 void replace_length_octets_with_dots(char *dns_name, char *new_dns_name);
 
 static const char *a_records_map_path = "/sys/fs/bpf/xdns_a_records";
+static const char *aaaa_records_map_path = "/sys/fs/bpf/xdns_aaaa_records";
 
 void usage(char *progname)
 {
@@ -41,6 +37,7 @@ void usage(char *progname)
     fprintf(stderr, "       %s list\n", progname);
     fprintf(stderr, "\nExamples:\n");
     fprintf(stderr, "   %s add a foo.bar 1.2.3.4 120\n", progname);
+    fprintf(stderr, "   %s add aaaa foo.bar 1:2:3::4 120\n", progname);
 }
 
 int main(int argc, char **argv)
@@ -49,9 +46,10 @@ int main(int argc, char **argv)
     int ret = EINVAL;
 
     //Initialize file descriptor for a_records map
-    int a_records_fd;
+    int a_records_fd, aaaa_records_fd;
     a_records_fd = get_map_fd(a_records_map_path);
-    if (a_records_fd < 0)
+    aaaa_records_fd = get_map_fd(aaaa_records_map_path);
+    if (a_records_fd < 0 || aaaa_records_fd < 0)
         return EXIT_FAILURE;
 
     if (argc == 2)
@@ -60,6 +58,7 @@ int main(int argc, char **argv)
         {
             struct dns_query key, next_key;
             struct a_record value;
+            struct aaaa_record value6;
             int res = -1;
             while (bpf_map_get_next_key(a_records_fd, &key, &next_key) == 0)
             {
@@ -72,6 +71,21 @@ int main(int argc, char **argv)
                 }
                 key = next_key;
             }
+            memset(&key, 0, sizeof(key));
+            res = -1;
+            while (bpf_map_get_next_key(aaaa_records_fd, &key, &next_key) == 0)
+            {
+                res = bpf_map_lookup_elem(aaaa_records_fd, &next_key, &value6);
+                if (res > -1)
+                {
+                    char new_dns_name[strnlen(next_key.name, MAX_DNS_NAME_LENGTH)];
+                    char new_ip_buf[INET6_ADDRSTRLEN];
+                    replace_length_octets_with_dots(next_key.name, new_dns_name);
+                    inet_ntop(AF_INET6, &value6.ip_addr, new_ip_buf, sizeof(new_ip_buf));
+                    printf("AAAA %s %s %i\n", new_dns_name, new_ip_buf, value6.ttl);
+                }
+                key = next_key;
+            }
             ret = 0;
         }
     }
@@ -80,23 +94,7 @@ int main(int argc, char **argv)
         if (strcmp(argv[1], "add") == 0 || strcmp(argv[1], "remove") == 0)
         {
             struct in_addr ip_addr;
-
-            //Check for 'A' record
-            if (strcmp(argv[2], "a") == 0 || strcmp(argv[2], "A") == 0)
-            {
-                if (inet_aton(argv[4], &ip_addr) == 0)
-                {
-                    printf("ERROR: Invalid IP address\n");
-                    ret = EINVAL;
-                    return ret;
-                }
-
-            } else {
-                printf("ERROR: %s is not a DNS record type.\n", argv[2]);
-                ret = EINVAL;   
-                return ret;
-            }
-
+            struct in6_addr ip6_addr;
             //Create a new dns_name char array
             char new_dns_name[MAX_DNS_NAME_LENGTH];
             //Zero fill the new_dns_name
@@ -105,34 +103,92 @@ int main(int argc, char **argv)
 
             struct dns_query dns;
             dns.class = DNS_CLASS_IN;
-            dns.record_type = A_RECORD_TYPE;
             memcpy(dns.name, new_dns_name, sizeof(new_dns_name));
 
-            if (strcmp(argv[1], "add") == 0)
+            //Check for 'A' record
+            if (strcmp(argv[2], "a") == 0 || strcmp(argv[2], "A") == 0)
             {
-                struct a_record a;
-                a.ip_addr = ip_addr;
-                if(argc == 5){
-                    a.ttl = 0;
-                } else {
-                    a.ttl = (uint32_t)atoi(argv[5]);
-                }
-                bpf_map_update_elem(a_records_fd, &dns, &a, BPF_ANY);
-                printf("DNS record added\n");
-                ret = 0;
-            }
-            else if (strcmp(argv[1], "remove") == 0)
-            {
-                if (bpf_map_delete_elem(a_records_fd, &dns) == 0)
+                dns.record_type = A_RECORD_TYPE;
+                if (inet_aton(argv[4], &ip_addr) == 0)
                 {
-                    printf("DNS record removed\n");
-                    ret = 0;
+                    printf("ERROR: Invalid IP address\n");
+                    ret = EINVAL;
+                    return ret;
                 }
-                else
+                if (strcmp(argv[1], "add") == 0)
                 {
-                    printf("DNS record not found\n");
-                    ret = ENOENT;
+                    struct a_record a;
+                    a.ip_addr = ip_addr;
+                    if(argc == 5){
+                        a.ttl = 0;
+                    } else {
+                        a.ttl = (uint32_t)atoi(argv[5]);
+                    }
+                    if (bpf_map_update_elem(a_records_fd, &dns, &a, BPF_ANY) < 0){
+                        printf("ERROR: DNS record could not be added\n");
+                        ret = EINVAL;
+                    }
+                    else {
+                        printf("DNS record added\n");
+                        ret = 0;
+                    }
                 }
+                else if (strcmp(argv[1], "remove") == 0)
+                {
+                    if (bpf_map_delete_elem(a_records_fd, &dns) == 0)
+                    {
+                        printf("DNS record removed\n");
+                        ret = 0;
+                    }
+                    else
+                    {
+                        printf("DNS record not found\n");
+                        ret = ENOENT;
+                    }
+                }
+            } else if (strcmp(argv[2], "aaaa") == 0 || strcmp(argv[2], "AAAA") == 0) { //Check for 'AAAA' record
+                dns.record_type = AAAA_RECORD_TYPE;
+                if (inet_pton(AF_INET6, argv[4], &ip6_addr) != 1)
+                {
+                    printf("ERROR: Invalid IP address\n");
+                    ret = EINVAL;
+                    return ret;
+                }
+                if (strcmp(argv[1], "add") == 0)
+                {
+                    struct aaaa_record a;
+                    a.ip_addr = ip6_addr;
+                    if(argc == 5){
+                        a.ttl = 0;
+                    } else {
+                        a.ttl = (uint32_t)atoi(argv[5]);
+                    }
+                    if (bpf_map_update_elem(aaaa_records_fd, &dns, &a, BPF_ANY) < 0){
+                        printf("ERROR: DNS record could not be added\n");
+                        ret = EINVAL;
+                    }
+                    else {
+                        printf("DNS record added\n");
+                        ret = 0;
+                    }
+                }
+                else if (strcmp(argv[1], "remove") == 0)
+                {
+                    if (bpf_map_delete_elem(aaaa_records_fd, &dns) == 0)
+                    {
+                        printf("DNS record removed\n");
+                        ret = 0;
+                    }
+                    else
+                    {
+                        printf("DNS record not found\n");
+                        ret = ENOENT;
+                    }
+                }
+            } else {
+                printf("ERROR: %s is not a DNS record type.\n", argv[2]);
+                ret = EINVAL;   
+                return ret;
             }
         }
     }
