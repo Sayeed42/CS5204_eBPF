@@ -25,6 +25,8 @@ TARGETS += tc_icmp
 CLANG ?= clang
 LLC ?= llc
 CC := gcc
+#DEBUG = y  enables printk in the BPF program
+DEBUG ?= n
 
 KERN_SOURCES = ${TARGETS:=_kern.c}
 USER_SOURCES = ${TARGETS:=_user.c}
@@ -56,6 +58,9 @@ LINUXINCLUDE += -include $(LINUX_PATH)/samples/bpf/asm_goto_workaround.h
 LINUXINCLUDE += -I$(LIBBPF_PATH)
 
 EXTRA_CFLAGS=-Werror
+ifeq ($(DEBUG),y)
+	EXTRA_CFLAGS += -D DEBUG
+endif
 
 ###
 

@@ -48,7 +48,9 @@ int icmp_serv(struct xdp_md *ctx)
 	u16 csum = htons(icmp->checksum);
 	csum += 0x0800;
 	icmp->checksum = ntohs(csum);
+	#ifdef DEBUG
 	bpf_printk("Passing through XDP");
+	#endif
 	return XDP_TX;
 }
 
