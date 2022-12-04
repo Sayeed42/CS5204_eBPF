@@ -13,6 +13,7 @@ from gevent import monkey
 monkey.patch_all()
 from gevent.queue import Queue
 import pylru
+from time import perf_counter_ns
 
 
 def query(qname):
@@ -61,6 +62,7 @@ def handler(data, addr, sock):
     except Exception as e:
         print('Not a DNS packet.\n', e)
     else:
+        tstart = perf_counter_ns()
         dns.header.set_qr(dnslib.QR.RESPONSE)
         # 获得请求域名
         qname = dns.q.qname
@@ -79,6 +81,8 @@ def handler(data, addr, sock):
 
             # 将查询到的应答包放入LRUCache以后使用
             DNSServer.dns_cache[qname] = answer_dns.pack()
+            tend = perf_counter_ns()
+            print(tend-tstart,'ns')
             # 返回
             sock.sendto(answer_dns.pack(), addr)
 
